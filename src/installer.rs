@@ -81,42 +81,38 @@ impl Driver {
     #[doc(hidden)]
     fn install_into_version(&self, target_dir: PathBuf, version: &str) -> Result<PathBuf> {
         ensure!(target_dir.exists(), "installation directory must exist.");
-                ensure!(
-                    target_dir.is_dir(),
-                    "installation location must be a directory."
-                );
+        ensure!(
+            target_dir.is_dir(),
+            "installation location must be a directory."
+        );
 
-                let download_url = match self {
-                    Self::Gecko => {
-                        Geckodriver::new().direct_download_url(version)?
-                    }
-                    Self::Chrome => {
-                        Chromedriver::new().direct_download_url(version)?
-                    }
-                };
-                let resp = reqwest::blocking::get(download_url.clone())?;
-                let archive_content = &resp.bytes()?;
+        let download_url = match self {
+            Self::Gecko => Geckodriver::new().direct_download_url(version)?,
+            Self::Chrome => Chromedriver::new().direct_download_url(version)?,
+        };
+        let resp = reqwest::blocking::get(download_url.clone())?;
+        let archive_content = &resp.bytes()?;
 
-                let archive_filename = download_url
-                    .path_segments()
-                    .and_then(|s| s.last())
-                    .and_then(|name| if name.is_empty() { None } else { Some(name) })
-                    .unwrap_or("tmp.bin");
+        let archive_filename = download_url
+            .path_segments()
+            .and_then(|s| s.last())
+            .and_then(|name| if name.is_empty() { None } else { Some(name) })
+            .unwrap_or("tmp.bin");
 
-                let executable_path = decompress(archive_filename, archive_content, target_dir.clone())?;
+        let executable_path = decompress(archive_filename, archive_content, target_dir.clone())?;
 
-                // Make sure the extracted file will be executable.
-                //
-                // Windows doesn't need that, because all `.exe` files are automatically executable.
-                #[cfg(any(target_os = "linux", target_os = "macos"))]
-                {
-                    use std::fs;
-                    use std::os::unix::fs::PermissionsExt;
-                    fs::set_permissions(&executable_path, fs::Permissions::from_mode(0o775)).unwrap();
-                }
+        // Make sure the extracted file will be executable.
+        //
+        // Windows doesn't need that, because all `.exe` files are automatically executable.
+        #[cfg(any(target_os = "linux", target_os = "macos"))]
+        {
+            use std::fs;
+            use std::os::unix::fs::PermissionsExt;
+            fs::set_permissions(&executable_path, fs::Permissions::from_mode(0o775)).unwrap();
+        }
 
-                debug!("stored at {:?}", executable_path);
-                Ok(executable_path)
+        debug!("stored at {:?}", executable_path);
+        Ok(executable_path)
     }
 
     #[doc(hidden)]
@@ -164,7 +160,10 @@ fn decompress(archive_filename: &str, bytes: &[u8], target_dir: PathBuf) -> Resu
             let mut filename: Option<String> = None;
             for i in 0..zip.len() {
                 let mut file = zip.by_index(i)?;
-                if let Some(file_name) = std::path::Path::new(file.name()).file_name().and_then(|n| n.to_str()){
+                if let Some(file_name) = std::path::Path::new(file.name())
+                    .file_name()
+                    .and_then(|n| n.to_str())
+                {
                     if DRIVER_EXECUTABLES.contains(&file_name) {
                         filename = Some(file_name.to_string());
                         file.read_to_end(&mut zip_bytes)?;

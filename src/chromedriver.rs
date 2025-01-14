@@ -4,9 +4,9 @@
 /// See https://chromedriver.chromium.org/downloads/version-selection
 use eyre::{eyre, Result};
 use regex::Regex;
-use tracing::{debug};
-use url::Url;
 use serde_json::Value;
+use tracing::debug;
+use url::Url;
 
 use std::process::{Command, Stdio};
 
@@ -41,9 +41,10 @@ impl DriverFetcher for Chromedriver {
 
     /// Return the latest stable version of the driver
     fn latest_stable_version(&self) -> Result<String> {
-        const VERSION_URL: &'static str = "https://googlechromelabs.github.io/chrome-for-testing/LATEST_RELEASE_STABLE";
+        const VERSION_URL: &'static str =
+            "https://googlechromelabs.github.io/chrome-for-testing/LATEST_RELEASE_STABLE";
         let version_response = reqwest::blocking::get(VERSION_URL)?;
-        
+
         return Ok(version_response.text()?);
     }
 
