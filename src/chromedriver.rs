@@ -39,6 +39,14 @@ impl DriverFetcher for Chromedriver {
         Err(eyre!("Could not find the latest version"))
     }
 
+    /// Return the latest stable version of the driver
+    fn latest_stable_version(&self) -> Result<String> {
+        const VERSION_URL: &'static str = "https://googlechromelabs.github.io/chrome-for-testing/LATEST_RELEASE_STABLE";
+        let version_response = reqwest::blocking::get(VERSION_URL)?;
+        
+        return Ok(version_response.text()?);
+    }
+
     /// Returns the download url for the driver executable
     fn direct_download_url(&self, version: &str) -> Result<Url> {
         Ok(Url::parse(&format!(

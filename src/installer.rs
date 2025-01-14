@@ -1,3 +1,4 @@
+use crate::chromedriver;
 use crate::{chromedriver::Chromedriver, geckodriver::Geckodriver, DriverFetcher};
 use dirs::home_dir;
 use eyre::{ensure, eyre, Result};
@@ -62,45 +63,60 @@ impl Driver {
     /// # }
     /// ```
     pub fn install_into(&self, target_dir: PathBuf) -> Result<PathBuf> {
+        let version = match self {
+            Driver::Chrome => Chromedriver::new().latest_version(),
+            Driver::Gecko => Geckodriver::new().latest_version(),
+        }?;
+        self.install_into_version(target_dir, &version)
+    }
+
+    pub fn install_into_stable(&self, target_dir: PathBuf) -> Result<PathBuf> {
+        let version = match self {
+            Driver::Chrome => Chromedriver::new().latest_stable_version(),
+            Driver::Gecko => Geckodriver::new().latest_stable_version(),
+        }?;
+        self.install_into_version(target_dir, &version)
+    }
+
+    #[doc(hidden)]
+    fn install_into_version(&self, target_dir: PathBuf, version: &str) -> Result<PathBuf> {
         ensure!(target_dir.exists(), "installation directory must exist.");
-        ensure!(
-            target_dir.is_dir(),
-            "installation location must be a directory."
-        );
+                ensure!(
+                    target_dir.is_dir(),
+                    "installation location must be a directory."
+                );
 
-        let download_url = match self {
-            Self::Gecko => {
-                let version = Geckodriver::new().latest_version()?;
-                Geckodriver::new().direct_download_url(&version)?
-            }
-            Self::Chrome => {
-                let version = Chromedriver::new().latest_version()?;
-                Chromedriver::new().direct_download_url(&version)?
-            }
-        };
-        let resp = reqwest::blocking::get(download_url.clone())?;
-        let archive_content = &resp.bytes()?;
+                let download_url = match self {
+                    Self::Gecko => {
+                        Geckodriver::new().direct_download_url(version)?
+                    }
+                    Self::Chrome => {
+                        Chromedriver::new().direct_download_url(version)?
+                    }
+                };
+                let resp = reqwest::blocking::get(download_url.clone())?;
+                let archive_content = &resp.bytes()?;
 
-        let archive_filename = download_url
-            .path_segments()
-            .and_then(|s| s.last())
-            .and_then(|name| if name.is_empty() { None } else { Some(name) })
-            .unwrap_or("tmp.bin");
+                let archive_filename = download_url
+                    .path_segments()
+                    .and_then(|s| s.last())
+                    .and_then(|name| if name.is_empty() { None } else { Some(name) })
+                    .unwrap_or("tmp.bin");
 
-        let executable_path = decompress(archive_filename, archive_content, target_dir.clone())?;
+                let executable_path = decompress(archive_filename, archive_content, target_dir.clone())?;
 
-        // Make sure the extracted file will be executable.
-        //
-        // Windows doesn't need that, because all `.exe` files are automatically executable.
-        #[cfg(any(target_os = "linux", target_os = "macos"))]
-        {
-            use std::fs;
-            use std::os::unix::fs::PermissionsExt;
-            fs::set_permissions(&executable_path, fs::Permissions::from_mode(0o775)).unwrap();
-        }
+                // Make sure the extracted file will be executable.
+                //
+                // Windows doesn't need that, because all `.exe` files are automatically executable.
+                #[cfg(any(target_os = "linux", target_os = "macos"))]
+                {
+                    use std::fs;
+                    use std::os::unix::fs::PermissionsExt;
+                    fs::set_permissions(&executable_path, fs::Permissions::from_mode(0o775)).unwrap();
+                }
 
-        debug!("stored at {:?}", executable_path);
-        Ok(executable_path)
+                debug!("stored at {:?}", executable_path);
+                Ok(executable_path)
     }
 
     #[doc(hidden)]

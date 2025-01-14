@@ -15,6 +15,11 @@ impl DriverFetcher for Geckodriver {
         Ok(url.path_segments().unwrap().last().unwrap().to_string())
     }
 
+    /// Returns the latest stable version of the driver
+    fn latest_stable_version(&self) -> Result<String> {
+        self.latest_version()
+    }
+
     /// Returns the download url for the driver executable
     fn direct_download_url(&self, version: &str) -> Result<Url> {
         Ok(Url::parse(&format!(
@@ -24,6 +29,7 @@ impl DriverFetcher for Geckodriver {
             platform = Self::platform()?
         ))?)
     }
+    
 }
 
 impl Geckodriver {
